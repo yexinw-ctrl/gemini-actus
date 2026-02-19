@@ -1,0 +1,42 @@
+{
+  "name": "@google/gemini-actus-google-chat-gateway",
+  "version": "0.28.0-nightly.20260128.adc8e11bb",
+  "description": "Google Chat Gateway",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/google-gemini/gemini-actus.git",
+    "directory": "packages/google-chat-gateway"
+  },
+  "type": "module",
+  "main": "dist/src/index.js",
+  "scripts": {
+    "build": "node ../../scripts/build_package.js",
+    "start": "node dist/src/index.js",
+    "lint": "eslint . --ext .ts,.tsx",
+    "format": "prettier --write .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:ci": "vitest run --coverage"
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@a2a-js/sdk": "^0.3.8",
+    "@googleapis/chat": "^3.0.0",
+    "dotenv": "^16.4.5",
+    "express": "^5.1.0",
+    "google-auth-library": "^9.6.3",
+    "uuid": "^9.0.1",
+    "winston": "^3.17.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/uuid": "^10.0.0",
+    "typescript": "^5.3.3",
+    "vitest": "^3.1.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
