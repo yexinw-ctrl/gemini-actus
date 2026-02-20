@@ -141,6 +141,10 @@ export class CoderAgentExecutor implements AgentExecutor {
     eventBus?: ExecutionEventBus,
   ): Promise<TaskWrapper> {
     const agentSettings = agentSettingsInput || ({} as AgentSettings);
+    // Allow global auto-execute override via environment variable
+    if (process.env['CODER_AGENT_AUTO_EXECUTE'] === 'true') {
+      agentSettings.autoExecute = true;
+    }
     const config = await this.getConfig(agentSettings, taskId);
     const runtimeTask = await Task.create(
       taskId,
