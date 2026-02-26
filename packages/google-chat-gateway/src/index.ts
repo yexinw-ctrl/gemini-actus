@@ -13,6 +13,7 @@ dotenv.config({ path: path.resolve(process.cwd(), '../../.env') });
 
 import { logger } from './logger.js';
 import { googleChatRoutes } from './routes.js';
+import { startPubSubSubscriber } from './pubsub.js';
 
 const app = express();
 const port = process.env['PORT'] || 3000;
@@ -31,6 +32,17 @@ app.post('/', (req, res, next) => {
   req.url = '/webhook';
   googleChatRoutes(req, res, next);
 });
+
+const projectId = process.env['PROJECT_ID'];
+const subscriptionId = process.env['SUBSCRIPTION_ID'];
+
+if (projectId && subscriptionId) {
+  startPubSubSubscriber(projectId, subscriptionId);
+} else {
+  logger.info(
+    'PROJECT_ID or SUBSCRIPTION_ID not set. Pub/Sub subscriber will not start.',
+  );
+}
 
 app.listen(port, () => {
   logger.info(`[Google Chat Gateway] Server started on port ${port}`);

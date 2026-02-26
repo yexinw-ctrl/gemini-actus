@@ -11,8 +11,7 @@ import {
   type NextFunction,
 } from 'express';
 import { verifyGoogleChatWebhook } from './auth.js';
-import { askAgent } from './agentClient.js';
-import { sendAsyncMessage } from './chatApi.js';
+import { handleChatEvent } from './eventHandler.js';
 import { logger } from './logger.js';
 
 const router = Router();
@@ -24,71 +23,25 @@ const authMiddleware =
     ? (req: Request, res: Response, next: NextFunction) => next()
     : verifyGoogleChatWebhook;
 
-router.post('/webhook', authMiddleware, (req, res) => {
+router.post('/webhook', authMiddleware, async (req, res) => {
   const event = req.body;
   logger.info(`Content-Type: ${req.header('content-type')}`);
   logger.info(`Full Request Body: ${JSON.stringify(event)}`);
   logger.info(`Received webhook event type: ${event.type}`);
 
-  // Handler for the new Google Chat API interaction structure
-  // The log shows: { chat: { messagePayload: { ... } } }
-
-  if (event.chat && event.chat.messagePayload) {
-    const messagePayload = event.chat.messagePayload;
-    if (messagePayload.message) {
-      const text =
-        messagePayload.message.argumentText ||
-        messagePayload.message.text ||
-        '';
-      const spaceName = messagePayload.space?.name;
-      const threadName = messagePayload.message.thread?.name;
-
-      // Acknowledge synchronously to avoid 30s timeout
-      res.status(200).send({});
-
-      if (text && spaceName && threadName) {
-        // Send the prompt to the core agent and then reply asynchronously
-        askAgent(text)
-          .then((agentResponse) =>
-            sendAsyncMessage(spaceName, threadName, agentResponse.text),
-          )
-          .catch((err) => {
-            logger.error('Background agent processing error:', err);
-          });
-      }
-      return;
-    }
-  }
-
-  // Fallback for legacy event format (ADD_TO_SPACE, CARD_CLICKED etc if they still use it)
-  // Immediate synchronous acknowledgment for Bot added to Space
-  if (event.type === 'ADDED_TO_SPACE') {
-    res.status(200).send({
-      text: 'Hello! I am the Gemini Actus gateway bot. Thanks for adding me!',
-    });
-    return;
-  }
-
-  if (event.type === 'MESSAGE' && event.message) {
-    const text = event.message.text || '';
-    const spaceName = event.space.name;
-    const threadName = event.message.thread.name;
+  try {
+    const syncResponse = await handleChatEvent(event);
 
     // Acknowledge synchronously to avoid 30s timeout
-    res.status(200).send({});
-
-    // Send the prompt to the core agent and then reply asynchronously
-    askAgent(text)
-      .then((agentResponse) =>
-        sendAsyncMessage(spaceName, threadName, agentResponse.text),
-      )
-      .catch((err) => {
-        logger.error('Background agent processing error:', err);
-      });
-    return;
+    if (syncResponse) {
+      res.status(200).send(syncResponse);
+    } else {
+      res.status(200).send({});
+    }
+  } catch (err) {
+    logger.error('Error handling chat event in webhook:', err);
+    res.status(500).send();
   }
-
-  res.status(200).send();
 });
 
 export { router as googleChatRoutes };

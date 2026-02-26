@@ -23,6 +23,7 @@
   ],
   "dependencies": {
     "@a2a-js/sdk": "^0.3.8",
+    "@google-cloud/pubsub": "^4.0.0",
     "@googleapis/chat": "^3.0.0",
     "dotenv": "^16.4.5",
     "express": "^5.1.0",

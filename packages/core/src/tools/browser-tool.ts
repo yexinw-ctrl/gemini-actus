@@ -205,8 +205,9 @@ class BrowserToolInvocation extends BaseToolInvocation<
         const bridge = ExtensionBridge.getInstance();
         await bridge.startServer(); // Ensure it's listening
 
-        // Wait up to 2 seconds for a connection just in case they just clicked it
-        const isConnected = await bridge.waitForConnection(2000);
+        // Wait up to 6 seconds for a connection just in case they just clicked it,
+        // or the extension is currently in its 5-second reconnect cycle.
+        const isConnected = await bridge.waitForConnection(6000);
 
         if (isConnected) {
           debugLogger.log(

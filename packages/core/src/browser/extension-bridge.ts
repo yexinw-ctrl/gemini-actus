@@ -77,7 +77,9 @@ export class ExtensionBridge {
 
         ws.on('close', () => {
           debugLogger.log('ExtensionBridge: Extension disconnected');
-          this.socket = null;
+          if (this.socket === ws) {
+            this.socket = null;
+          }
         });
       });
 
