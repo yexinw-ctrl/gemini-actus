@@ -168,6 +168,17 @@ vi.mock('../resources/resource-registry.js', () => ({
   ResourceRegistry: vi.fn(),
 }));
 
+vi.mock('../browser/extension-bridge.js', () => ({
+  ExtensionBridge: {
+    getInstance: vi.fn().mockReturnValue({
+      startServer: vi.fn().mockResolvedValue(undefined),
+      waitForConnection: vi.fn().mockResolvedValue(false),
+      sendCommand: vi.fn(),
+      isConnected: false,
+    }),
+  },
+}));
+
 const mockCoreEvents = vi.hoisted(() => ({
   emitFeedback: vi.fn(),
   emitModelChanged: vi.fn(),

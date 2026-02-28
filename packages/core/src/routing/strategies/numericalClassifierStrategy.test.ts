@@ -436,7 +436,13 @@ describe('NumericalClassifierStrategy', () => {
     const contents = generateJsonCall.contents;
 
     const expectedContents = [
-      ...mockContext.history,
+      { role: 'user', parts: [{ text: 'call a tool' }] },
+      { role: 'model', parts: [{ text: '[Function Call: test_tool]' }] },
+      {
+        role: 'user',
+        parts: [{ text: '[Function Response for test_tool]' }],
+      },
+      { role: 'user', parts: [{ text: 'another user turn' }] },
       // The last user turn is the request part
       {
         role: 'user',

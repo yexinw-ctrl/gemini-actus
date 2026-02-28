@@ -13,6 +13,18 @@ import type { Config } from '../config/config.js';
 
 vi.mock('puppeteer-core');
 vi.mock('chrome-launcher');
+const mockBridgeInstance = vi.hoisted(() => ({
+  startServer: vi.fn(),
+  waitForConnection: vi.fn(),
+  sendCommand: vi.fn(),
+  isConnected: false,
+}));
+
+vi.mock('../browser/extension-bridge.js', () => ({
+  ExtensionBridge: {
+    getInstance: vi.fn(() => mockBridgeInstance),
+  },
+}));
 
 describe('BrowserTool', () => {
   let tool: BrowserTool;
@@ -63,6 +75,10 @@ describe('BrowserTool', () => {
     vi.mocked(chromeLauncher.launch).mockResolvedValue(
       mockChrome as chromeLauncher.LaunchedChrome,
     );
+
+    mockBridgeInstance.startServer.mockResolvedValue(undefined);
+    mockBridgeInstance.waitForConnection.mockResolvedValue(false);
+    mockBridgeInstance.isConnected = false;
 
     const config = {
       getTargetDir: vi.fn().mockReturnValue('/mock/dir'),

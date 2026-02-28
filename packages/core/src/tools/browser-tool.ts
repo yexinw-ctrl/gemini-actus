@@ -27,6 +27,7 @@ interface BrowserToolParams {
     | 'scroll'
     | 'get_screenshot'
     | 'get_html'
+    | 'execute_script'
     | 'close';
   url?: string;
   x?: number;
@@ -35,6 +36,7 @@ interface BrowserToolParams {
   text?: string;
   delta_x?: number;
   delta_y?: number;
+  script?: string;
 }
 
 const VIEWPORT_WIDTH = 1280;
@@ -172,6 +174,8 @@ class BrowserToolInvocation extends BaseToolInvocation<
         return `Get Screenshot`;
       case 'get_html':
         return `Get HTML`;
+      case 'execute_script':
+        return `Execute script`;
       case 'close':
         return `Close Browser`;
       default:
@@ -231,7 +235,12 @@ class BrowserToolInvocation extends BaseToolInvocation<
         const result = (await bridge.sendCommand(
           this.params.action,
           this.params,
-        )) as { base64?: string; html?: string; type?: string };
+        )) as {
+          base64?: string;
+          html?: string;
+          type?: string;
+          scriptResult?: string;
+        };
 
         // Adapt result to ToolResult
         if (result.base64) {
@@ -250,6 +259,12 @@ class BrowserToolInvocation extends BaseToolInvocation<
           return {
             llmContent: result.html,
             returnDisplay: 'HTML Content retrieved (via extension).',
+          };
+        }
+        if (result.scriptResult !== undefined) {
+          return {
+            llmContent: result.scriptResult,
+            returnDisplay: 'Script executed (via extension).',
           };
         }
 
@@ -332,6 +347,18 @@ class BrowserToolInvocation extends BaseToolInvocation<
         case 'get_screenshot': {
           // Handled below
           break;
+        }
+        case 'execute_script': {
+          if (!this.params.script)
+            throw new Error('script is required for execute_script');
+          const scriptResult = await page.evaluate(this.params.script);
+          return {
+            llmContent:
+              typeof scriptResult === 'string'
+                ? scriptResult
+                : JSON.stringify(scriptResult),
+            returnDisplay: 'Script executed',
+          };
         }
         default: {
           break;
@@ -426,6 +453,7 @@ export class BrowserTool extends BaseDeclarativeTool<
               'scroll',
               'get_screenshot',
               'get_html',
+              'execute_script',
               'close',
             ],
             description: 'The action to perform.',
@@ -449,6 +477,11 @@ export class BrowserTool extends BaseDeclarativeTool<
           text: {
             type: 'string',
             description: 'Text to type (required for type).',
+          },
+          script: {
+            type: 'string',
+            description:
+              'JavaScript code to execute (required for execute_script).',
           },
           delta_x: {
             type: 'number',

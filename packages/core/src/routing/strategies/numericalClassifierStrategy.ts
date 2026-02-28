@@ -142,6 +142,31 @@ export class NumericalClassifierStrategy implements RoutingStrategy {
 
       const finalHistory = context.history.slice(-HISTORY_TURNS_FOR_CONTEXT);
 
+      // Strip out non-text parts which are not supported by the classifier's schema-only request.
+      const sanitizedHistory = finalHistory.map((content) => {
+        const parts = content.parts || [];
+        const sanitizedParts = parts.map((part) => {
+          if (part.text !== undefined) return { text: part.text };
+          if (part.functionCall) {
+            return { text: `[Function Call: ${part.functionCall.name}]` };
+          }
+          if (part.functionResponse) {
+            return {
+              text: `[Function Response for ${part.functionResponse.name}]`,
+            };
+          }
+          return { text: '[Unsupported Part]' };
+        });
+
+        return {
+          ...content,
+          parts:
+            sanitizedParts.length > 0
+              ? sanitizedParts
+              : [{ text: '[Empty Content]' }],
+        };
+      });
+
       // Wrap the user's request in tags to prevent prompt injection
       const requestParts = Array.isArray(context.request)
         ? context.request
@@ -151,7 +176,7 @@ export class NumericalClassifierStrategy implements RoutingStrategy {
         if (typeof part === 'string') {
           return { text: part };
         }
-        if (part.text) {
+        if (part.text !== undefined) {
           return { text: part.text };
         }
         return part;
@@ -159,7 +184,7 @@ export class NumericalClassifierStrategy implements RoutingStrategy {
 
       const jsonResponse = await baseLlmClient.generateJson({
         modelConfigKey: { model: 'classifier' },
-        contents: [...finalHistory, createUserContent(sanitizedRequest)],
+        contents: [...sanitizedHistory, createUserContent(sanitizedRequest)],
         schema: RESPONSE_SCHEMA,
         systemInstruction: CLASSIFIER_SYSTEM_PROMPT,
         abortSignal: context.signal,

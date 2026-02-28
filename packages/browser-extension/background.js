@@ -9,6 +9,7 @@
 // Connects to the local agent via WebSocket and executes commands.
 
 let socket = null;
+let currentDebuggerTarget = null;
 const RETRY_INTERVAL = 5000;
 const AGENT_URL = 'ws://127.0.0.1:41243'; // Port for the agent's browser control server
 
@@ -41,6 +42,14 @@ function connect() {
     console.log('Disconnected from agent');
     socket = null;
     updateIcon('off');
+
+    if (currentDebuggerTarget) {
+      chrome.debugger
+        .detach(currentDebuggerTarget)
+        .catch((e) => console.warn('Detach on close failed:', e));
+      currentDebuggerTarget = null;
+    }
+
     setTimeout(connect, RETRY_INTERVAL);
   };
 
@@ -85,6 +94,9 @@ async function handleMessage(message) {
         break;
       case 'get_screenshot':
         result = await getScreenshot(params);
+        break;
+      case 'execute_script':
+        result = await executeScript(params);
         break;
       default:
         throw new Error(`Unknown command: ${command}`);
@@ -149,11 +161,31 @@ function sendDebuggerCommand(target, method, params) {
 
 async function attachDebugger(tabId) {
   const target = { tabId };
+
+  // Detach all other debugger sessions to ensure only one is active at a time
+  try {
+    const targets = await chrome.debugger.getTargets();
+    for (const t of targets) {
+      if (t.attached && t.tabId && t.tabId !== tabId) {
+        try {
+          await chrome.debugger.detach({ tabId: t.tabId });
+        } catch (e) {
+          console.warn('Failed to detach other target:', t.tabId, e);
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to get debugger targets:', e);
+  }
+
+  currentDebuggerTarget = target;
+
   try {
     await chrome.debugger.attach(target, '1.3');
   } catch (e) {
-    // Ignore if already attached
-    if (!e.message.includes('Already attached')) {
+    const msg = e.message || String(e);
+    // Ignore if already attached (error message from Chrome is usually like "Another debugger is already attached...")
+    if (!msg.toLowerCase().includes('already attached')) {
       throw e;
     }
   }
@@ -254,5 +286,59 @@ async function getScreenshot() {
   return { base64 };
 }
 
+async function executeScript({ script }) {
+  const tab = await getActiveTab();
+  const target = await attachDebugger(tab.id);
+
+  const response = await sendDebuggerCommand(target, 'Runtime.evaluate', {
+    expression: script,
+    returnByValue: true,
+    awaitPromise: true,
+  });
+
+  if (response.exceptionDetails) {
+    throw new Error(
+      `Script error: ${response.exceptionDetails.exception?.description || 'Unknown error'}`,
+    );
+  }
+
+  // The result might be a string, number, or object.
+  // We can convert to JSON string or return the value.
+  const value = response.result?.value;
+  let scriptResult = value;
+
+  if (typeof value !== 'string') {
+    scriptResult = JSON.stringify(value);
+  }
+
+  return { scriptResult };
+}
+
 // Start connection
 connect();
+
+// Keep alive alarm (MV3 Service Worker goes to sleep after 30s)
+chrome.alarms.create('keepAlive', { periodInMinutes: 0.5 });
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === 'keepAlive') {
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+      console.log(
+        'Alarm woke up service worker, checking socket connection...',
+      );
+      connect();
+    }
+  }
+});
+
+// Allow manual wake-up/connect by clicking the extension icon
+chrome.action.onClicked.addListener(() => {
+  console.log('Extension icon clicked, triggering reconnect...');
+  if (!socket || socket.readyState !== WebSocket.OPEN) {
+    if (socket) {
+      socket.close();
+      socket = null;
+    }
+    connect();
+  }
+});

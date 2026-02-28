@@ -19,6 +19,18 @@ vi.mock('chrome-launcher');
 vi.mock('../utils/port-utils.js');
 vi.mock('node:child_process');
 vi.mock('node:fs');
+const mockBridgeInstance = vi.hoisted(() => ({
+  startServer: vi.fn(),
+  waitForConnection: vi.fn(),
+  sendCommand: vi.fn(),
+  isConnected: false,
+}));
+
+vi.mock('../browser/extension-bridge.js', () => ({
+  ExtensionBridge: {
+    getInstance: vi.fn(() => mockBridgeInstance),
+  },
+}));
 
 describe('BrowserTool Auto-Startup', () => {
   let tool: BrowserTool;
@@ -78,6 +90,10 @@ describe('BrowserTool Auto-Startup', () => {
     vi.mocked(spawn).mockReturnValue(
       mockChildProcess as unknown as import('node:child_process').ChildProcess,
     );
+
+    mockBridgeInstance.startServer.mockResolvedValue(undefined);
+    mockBridgeInstance.waitForConnection.mockResolvedValue(false);
+    mockBridgeInstance.isConnected = false;
 
     tool = new BrowserTool(config, messageBus);
   });
