@@ -55,7 +55,7 @@ export async function handleChatEvent(
                 agentResponse.text,
               );
             }
-            return;
+            return Promise.resolve();
           })
           .catch((err) => {
             logger.error('Background agent processing error:', err);
@@ -84,7 +84,7 @@ export async function handleChatEvent(
           if (agentResponse.text) {
             return sendAsyncMessage(spaceName, threadName, agentResponse.text);
           }
-          return;
+          return Promise.resolve();
         })
         .catch((err) => {
           logger.error('Background agent processing error:', err);
@@ -92,4 +92,5 @@ export async function handleChatEvent(
     }
     return;
   }
+  return;
 }

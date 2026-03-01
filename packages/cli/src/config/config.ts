@@ -58,6 +58,8 @@ import { McpServerEnablementManager } from './mcp/mcpServerEnablement.js';
 import type { ExtensionEvents } from '@google/gemini-actus-core/src/utils/extensionLoader.js';
 import { requestConsentNonInteractive } from './extensions/consent.js';
 import { promptForSetting } from './extensions/extensionSettings.js';
+import { onboardCommand } from '../commands/onboard.js';
+import { daemonCommand } from '../commands/daemon.js';
 import type { EventEmitter } from 'node:stream';
 import { runExitCleanup } from '../utils/cleanup.js';
 
@@ -325,6 +327,8 @@ export async function parseArguments(
     yargsInstance.command(hooksCommand);
   }
   yargsInstance.command(webCommand);
+  yargsInstance.command(onboardCommand);
+  yargsInstance.command(daemonCommand);
 
   yargsInstance
     .version(await getVersion()) // This will enable the --version flag based on package.json
@@ -338,7 +342,10 @@ export async function parseArguments(
   yargsInstance.wrap(yargsInstance.terminalWidth());
   let result;
   try {
-    result = await yargsInstance.parse();
+    // We MUST use parseAsync()! Otherwise, asynchronous command handlers like `onboard.ts`
+    // will just be triggered in the background, and Yargs will return synchronously 
+    // before the command finishes executing!
+    result = await (yargsInstance.parseAsync() as Promise<any>);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     debugLogger.error(msg);

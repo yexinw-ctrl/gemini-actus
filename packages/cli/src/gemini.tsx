@@ -335,6 +335,13 @@ export async function main() {
   const argv = await parseArguments(settings.merged);
   parseArgsHandle?.end();
 
+  if (argv.isCommand) {
+    // If a yargs sub-command was executed (like `onboard`), we must stop `gemini.tsx` 
+    // from continuing to launch the interactive chat UI.
+    await runExitCleanup();
+    process.exit(process.exitCode || 0);
+  }
+
   if (argv.startupMessages) {
     argv.startupMessages.forEach((msg) => {
       coreEvents.emitFeedback('info', msg);
