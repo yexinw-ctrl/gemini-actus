@@ -251,7 +251,7 @@ class LSToolInvocation extends BaseToolInvocation<LSToolParams, ToolResult> {
 
       return {
         llmContent: resultMessage,
-        returnDisplay: displayMessage,
+        returnDisplay: resultMessage,
       };
     } catch (error) {
       const errorMsg = `Error listing directory: ${error instanceof Error ? error.message : String(error)}`;

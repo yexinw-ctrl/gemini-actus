@@ -465,7 +465,7 @@ export async function processSingleFileContent(
 
         return {
           llmContent,
-          returnDisplay,
+          returnDisplay: returnDisplay ? `${returnDisplay}\n\n${llmContent}` : llmContent,
           isTruncated,
           originalLineCount,
           linesShown: [actualStartLine + 1, endLine],
